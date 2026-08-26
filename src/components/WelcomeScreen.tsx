@@ -4,7 +4,7 @@ import { UserProfile } from '../types';
 
 interface WelcomeScreenProps {
   currentUser: UserProfile | null;
-  onOpenAuth: (mode: 'signin' | 'signup' | 'guest') => void;
+  onOpenAuth: (mode: 'signin' | 'signup' | 'phone' | 'guest') => void;
   onGoogleSignIn: () => void;
   onCreateLink: () => void;
   onJoinLink: () => void;
@@ -88,12 +88,17 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 <div className="flex-1 min-w-0 pr-2">
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-medium text-white truncate">{currentUser.displayName}</p>
-                    {currentUser.email && (
+                    {(currentUser.email || currentUser.phoneNumber) && (
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     )}
                   </div>
 
-                  {currentUser.email ? (
+                  {currentUser.phoneNumber ? (
+                    <div className="flex items-center gap-1.5 text-xs text-[#D4AF37]/90 mt-0.5 truncate font-mono">
+                      <Phone className="w-3 h-3 shrink-0 text-[#D4AF37]" />
+                      <span className="truncate">{currentUser.phoneNumber}</span>
+                    </div>
+                  ) : currentUser.email ? (
                     <div className="flex items-center gap-1.5 text-xs text-[#D4AF37]/90 mt-0.5 truncate font-mono">
                       <Mail className="w-3 h-3 shrink-0 text-[#D4AF37]" />
                       <span className="truncate">{currentUser.email}</span>
@@ -135,7 +140,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 <span>Join with Link</span>
               </button>
 
-              {!currentUser.email && (
+              {!currentUser.email && !currentUser.phoneNumber && (
                 <button
                   type="button"
                   onClick={onGoogleSignIn}
@@ -153,12 +158,23 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </div>
           ) : (
             <div className="space-y-2.5">
+              {/* Phone Button */}
+              <button
+                type="button"
+                id="btn-welcome-phone"
+                onClick={() => onOpenAuth('phone')}
+                className="w-full py-3.5 px-4 rounded-xl bg-[#D4AF37] hover:bg-[#E5C07B] text-black text-sm font-semibold tracking-wide shadow-lg shadow-[#D4AF37]/20 transition-all flex items-center justify-center gap-2.5 active:scale-[0.99]"
+              >
+                <Phone className="w-4 h-4" />
+                <span>Continue with Phone</span>
+              </button>
+
               {/* Google Button */}
               <button
                 type="button"
                 id="btn-welcome-google"
                 onClick={onGoogleSignIn}
-                className="w-full py-3.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-sm font-medium text-white transition-all flex items-center justify-center gap-3 active:scale-[0.99]"
+                className="w-full py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-sm font-medium text-white transition-all flex items-center justify-center gap-3 active:scale-[0.99]"
               >
                 <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                   <path
@@ -192,15 +208,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 <span>Continue with Email</span>
               </button>
 
-              {/* Phone / Instant Option */}
+              {/* Guest / Instant Pass Option */}
               <button
                 type="button"
                 id="btn-welcome-guest"
                 onClick={() => onOpenAuth('guest')}
-                className="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-xs text-white/70 hover:text-white transition-all flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-xs text-white/60 hover:text-white transition-all flex items-center justify-center gap-2"
               >
-                <Phone className="w-3.5 h-3.5 text-[#D4AF37]" />
-                <span>Continue with Phone / Instant Pass</span>
+                <span>Instant Guest Pass</span>
               </button>
 
               <div className="pt-2.5 flex items-center gap-3">

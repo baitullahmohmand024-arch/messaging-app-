@@ -1,12 +1,13 @@
 {
-  "projectId": "zesty-handler-15fd2",
-  "appId": "1:70172718184:web:f8fce8cd3a1735bdf037dd",
-  "apiKey": "AIzaSyB57EtUcNMW2ZLr2PdC9cM75TiWJY0_zPY",
-  "authDomain": "zesty-handler-15fd2.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-twoprivatemessag-fe7bd0fc-78af-4a45-befd-fa938baaaf42",
-  "storageBucket": "zesty-handler-15fd2.firebasestorage.app",
-  "messagingSenderId": "70172718184",
-  "measurementId": "",
-  "oAuthClientId": "70172718184-u7u6c3dc35b6o6p9nup0tfemi7vtb75n.apps.googleusercontent.com",
+  "projectId": "hostel-friend-1b29b",
+  "appId": "1:304768977979:web:cb42048d07e75b7847a01e",
+  "apiKey": "AIzaSyCGiK6xPkBgC6avzepz4CBAlegY9UaITqQ",
+  "authDomain": "hostel-friend-1b29b.firebaseapp.com",
+  "databaseURL": "https://hostel-friend-1b29b-default-rtdb.firebaseio.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "hostel-friend-1b29b.firebasestorage.app",
+  "messagingSenderId": "304768977979",
+  "measurementId": "G-34KDBWHYCF",
+  "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }

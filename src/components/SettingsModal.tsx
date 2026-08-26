@@ -13,6 +13,7 @@ import {
   UserX,
   Sparkles,
   Mail,
+  Phone,
   CheckCircle2,
   Key
 } from 'lucide-react';
@@ -117,7 +118,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-white/50 font-light">Account Connection</span>
-                {currentUser.email ? (
+                {currentUser.phoneNumber ? (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>Phone Verified</span>
+                  </span>
+                ) : currentUser.email ? (
                   <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
                     <CheckCircle2 className="w-3 h-3" />
                     <span>Verified</span>
@@ -129,17 +135,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 )}
               </div>
 
-              <div className="flex items-center gap-2.5 pt-1">
-                <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                  <Mail className="w-4 h-4 text-[#D4AF37]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[10px] text-white/40 uppercase tracking-wider font-medium">Google / Registered Email</div>
-                  <div className="text-xs text-white font-mono truncate">
-                    {currentUser.email || 'No email associated (Instant Guest Session)'}
+              {currentUser.phoneNumber ? (
+                <div className="flex items-center gap-2.5 pt-1">
+                  <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                    <Phone className="w-4 h-4 text-[#D4AF37]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[10px] text-white/40 uppercase tracking-wider font-medium">Verified Mobile Number</div>
+                    <div className="text-xs text-white font-mono truncate">
+                      {currentUser.phoneNumber}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="flex items-center gap-2.5 pt-1">
+                  <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                    <Mail className="w-4 h-4 text-[#D4AF37]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[10px] text-white/40 uppercase tracking-wider font-medium">Google / Registered Email</div>
+                    <div className="text-xs text-white font-mono truncate">
+                      {currentUser.email || 'No email associated (Instant Guest Session)'}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center justify-between pt-1 border-t border-white/5 text-[11px] text-white/40">
                 <span>Account ID</span>

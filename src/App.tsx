@@ -84,7 +84,7 @@ export default function App() {
 
   // Modal Visibility States
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'guest'>('signin');
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'phone' | 'guest'>('signin');
   const [createInviteOpen, setCreateInviteOpen] = useState(false);
   const [joinInviteOpen, setJoinInviteOpen] = useState(false);
   const [partnerProfileOpen, setPartnerProfileOpen] = useState(false);
@@ -99,8 +99,13 @@ export default function App() {
     timestamp?: number;
   } | null>(null);
 
-  // Signature App Opening Animation State
-  const [showOpeningAnimation, setShowOpeningAnimation] = useState(true);
+  // Signature App Opening Animation State (Only show once on fresh device, instant skip available)
+  const [showOpeningAnimation, setShowOpeningAnimation] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('mylove_intro_seen') !== 'true';
+    }
+    return false;
+  });
   const [isReplayAnimation, setIsReplayAnimation] = useState(false);
 
   // Initial invitation token from URL query params
@@ -138,7 +143,18 @@ export default function App() {
           const profile = await syncUserProfile(user);
           setCurrentUser(profile);
         } catch (e) {
-          console.error('Profile sync error:', e);
+          console.warn('Profile sync fallback applied:', e);
+          setCurrentUser({
+            uid: user.uid,
+            displayName: user.displayName || user.phoneNumber || `User ${user.uid.slice(0, 5)}`,
+            email: user.email || null,
+            phoneNumber: user.phoneNumber || null,
+            photoURL: user.photoURL || null,
+            createdAt: Date.now(),
+            lastSeen: Date.now(),
+            isOnline: true,
+            activeConnectionId: null
+          });
         }
       } else {
         setCurrentUser(null);
@@ -288,7 +304,13 @@ export default function App() {
               }
             }
           }
-          return msgs;
+
+          // Retain any pending temp messages that aren't in snapshot yet
+          const pendingTemps = prev.filter(
+            (p) => p.id.startsWith('temp_') && !msgs.some((m) => m.createdAt === p.createdAt && m.senderId === p.senderId)
+          );
+
+          return [...msgs, ...pendingTemps];
         });
       },
       (error) => {
@@ -323,7 +345,7 @@ export default function App() {
     return () => unsub();
   }, [connection?.id, partner?.uid]);
 
-  // 8. Handler: Send Message
+  // 8. Handler: Send Message (with instant Optimistic UI)
   const handleSendMessage = async (msgData: {
     type: MessageType;
     text?: string;
@@ -335,11 +357,40 @@ export default function App() {
   }) => {
     if (!connection?.id || !currentUser) return;
 
-    await sendMessage(connection.id, currentUser, {
-      ...msgData,
-      replyTo: replyTo || undefined
-    });
+    const currentReply = replyTo || undefined;
     setReplyTo(null);
+
+    // Optimistic Local Message creation
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const optimisticMsg: Message = {
+      id: tempId,
+      conversationId: connection.id,
+      senderId: currentUser.uid,
+      senderName: currentUser.displayName,
+      senderPhoto: currentUser.photoURL,
+      type: msgData.type,
+      text: msgData.text || '',
+      mediaUrl: msgData.mediaUrl,
+      thumbnailUrl: msgData.thumbnailUrl,
+      duration: msgData.duration,
+      fileName: msgData.fileName,
+      fileSize: msgData.fileSize,
+      createdAt: Date.now(),
+      deliveredAt: Date.now(),
+      replyTo: currentReply,
+      reactions: {}
+    };
+
+    setMessages((prev) => [...prev, optimisticMsg]);
+
+    try {
+      await sendMessage(connection.id, currentUser, {
+        ...msgData,
+        replyTo: currentReply
+      });
+    } catch (err) {
+      console.error('Failed to send message:', err);
+    }
   };
 
   // 9. Handler: Typing Presence

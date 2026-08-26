@@ -4,6 +4,7 @@ export interface UserProfile {
   uid: string;
   displayName: string;
   email: string | null;
+  phoneNumber?: string | null;
   photoURL: string | null;
   createdAt: number;
   lastSeen: number;

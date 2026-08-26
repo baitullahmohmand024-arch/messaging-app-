@@ -6,6 +6,9 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signInAnonymously,
+  signInWithPhoneNumber,
+  RecaptchaVerifier,
+  ConfirmationResult,
   updateProfile,
   signOut as fbSignOut,
   onAuthStateChanged,
@@ -37,7 +40,11 @@ import { UserProfile, Invitation, Connection, Message, MessageType } from '../ty
 // Initialize Firebase safely
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = (firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)') 
+  ? getFirestore(app, firebaseConfig.firestoreDatabaseId) 
+  : getFirestore(app);
+
+export type { ConfirmationResult };
 
 export enum OperationType {
   CREATE = 'create',
@@ -66,8 +73,11 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errMsg = error instanceof Error ? error.message : String(error);
+  const isOfflineOrUnavailable = errMsg.includes('unavailable') || errMsg.includes('offline') || errMsg.includes('Failed to get document');
+  
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errMsg,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -82,18 +92,22 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   };
+
+  if (isOfflineOrUnavailable) {
+    console.warn('Firestore temporarily offline/reconnecting:', errInfo);
+    return;
+  }
+
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Validate Connection to Firestore on boot
+// Validate Connection to Firestore on boot (non-blocking)
 export async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn("Firestore connectivity notice: client is initializing or offline.");
-    }
+    // Expected when offline or when test document doesn't exist
   }
 }
 testConnection();
@@ -134,6 +148,90 @@ export const signInAsGuest = async (customName?: string) => {
   return result.user;
 };
 
+// Phone Authentication
+let appRecaptchaVerifier: RecaptchaVerifier | null = null;
+
+export const clearRecaptcha = (containerId: string = 'recaptcha-container') => {
+  if (appRecaptchaVerifier) {
+    try {
+      appRecaptchaVerifier.clear();
+    } catch {
+      // ignore
+    }
+    appRecaptchaVerifier = null;
+  }
+  if (typeof document !== 'undefined') {
+    const container = document.getElementById(containerId);
+    if (container) {
+      container.innerHTML = '';
+    }
+  }
+};
+
+export const setupRecaptcha = (containerId: string = 'recaptcha-container') => {
+  if (typeof window === 'undefined') return null;
+  
+  clearRecaptcha(containerId);
+
+  const container = document.getElementById(containerId);
+  if (!container) return null;
+
+  try {
+    appRecaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
+      size: 'invisible',
+      callback: () => {
+        // reCAPTCHA solved
+      },
+      'expired-callback': () => {
+        console.warn('reCAPTCHA expired, clearing verifier.');
+        clearRecaptcha(containerId);
+      }
+    });
+    return appRecaptchaVerifier;
+  } catch (err) {
+    console.warn('Error creating RecaptchaVerifier:', err);
+    clearRecaptcha(containerId);
+    return null;
+  }
+};
+
+export const sendPhoneVerificationCode = async (phoneNumber: string, containerId: string = 'recaptcha-container'): Promise<ConfirmationResult> => {
+  const verifier = setupRecaptcha(containerId);
+  if (!verifier) {
+    throw new Error('reCAPTCHA verification container is not ready. Please try again.');
+  }
+  try {
+    const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, verifier);
+    return confirmationResult;
+  } catch (error) {
+    // If sending fails, clear the verifier to allow fresh retry without collision
+    clearRecaptcha(containerId);
+    throw error;
+  }
+};
+
+export const confirmPhoneCode = async (
+  confirmationResult: ConfirmationResult, 
+  verificationCode: string, 
+  displayName?: string
+) => {
+  const userCredential = await confirmationResult.confirm(verificationCode);
+  const user = userCredential.user;
+  if (displayName && (!user.displayName || user.displayName.startsWith('User '))) {
+    try {
+      await updateProfile(user, { displayName });
+    } catch {
+      // ignore
+    }
+  }
+  try {
+    await syncUserProfile(user, displayName);
+  } catch (err) {
+    console.warn('Deferred profile sync after phone verification:', err);
+  }
+  return user;
+};
+
 export const logOut = async () => {
   if (auth.currentUser) {
     try {
@@ -148,49 +246,59 @@ export const logOut = async () => {
   return fbSignOut(auth);
 };
 
-// User Profile Sync
+// User Profile Sync with Offline Resilience
 export const syncUserProfile = async (user: User, customName?: string, photoUrl?: string): Promise<UserProfile> => {
-  const userRef = doc(db, 'users', user.uid);
-  const snap = await getDoc(userRef);
-  
   const now = Date.now();
-  const displayName = customName || user.displayName || `User ${user.uid.slice(0, 5)}`;
+  const displayName = customName || user.displayName || user.phoneNumber || `User ${user.uid.slice(0, 5)}`;
   const photo = photoUrl !== undefined ? photoUrl : (user.photoURL || null);
 
-  if (!snap.exists()) {
-    const newProfile: UserProfile = {
-      uid: user.uid,
-      displayName,
-      email: user.email || null,
-      photoURL: photo,
-      createdAt: now,
-      lastSeen: now,
-      isOnline: true,
-      activeConnectionId: null
-    };
-    await setDoc(userRef, newProfile);
-    return newProfile;
-  } else {
-    const existing = snap.data() as UserProfile;
-    const updates: Partial<UserProfile> = {
-      lastSeen: now,
-      isOnline: true
-    };
-    if (user.email && user.email !== existing.email) {
-      updates.email = user.email;
+  const fallbackProfile: UserProfile = {
+    uid: user.uid,
+    displayName,
+    email: user.email || null,
+    phoneNumber: user.phoneNumber || null,
+    photoURL: photo,
+    createdAt: now,
+    lastSeen: now,
+    isOnline: true,
+    activeConnectionId: null
+  };
+
+  try {
+    const userRef = doc(db, 'users', user.uid);
+    const snap = await getDoc(userRef);
+    
+    if (!snap.exists()) {
+      await setDoc(userRef, fallbackProfile, { merge: true });
+      return fallbackProfile;
+    } else {
+      const existing = snap.data() as UserProfile;
+      const updates: Partial<UserProfile> = {
+        lastSeen: now,
+        isOnline: true
+      };
+      if (user.email && user.email !== existing.email) {
+        updates.email = user.email;
+      }
+      if (user.phoneNumber && user.phoneNumber !== existing.phoneNumber) {
+        updates.phoneNumber = user.phoneNumber;
+      }
+      if (customName && customName !== existing.displayName) {
+        updates.displayName = customName;
+      } else if (!existing.displayName && user.displayName) {
+        updates.displayName = user.displayName;
+      }
+      if (photoUrl !== undefined && photoUrl !== existing.photoURL) {
+        updates.photoURL = photoUrl;
+      } else if (!existing.photoURL && user.photoURL) {
+        updates.photoURL = user.photoURL;
+      }
+      await updateDoc(userRef, updates).catch(() => {});
+      return { ...existing, ...updates };
     }
-    if (customName && customName !== existing.displayName) {
-      updates.displayName = customName;
-    } else if (!existing.displayName && user.displayName) {
-      updates.displayName = user.displayName;
-    }
-    if (photoUrl !== undefined && photoUrl !== existing.photoURL) {
-      updates.photoURL = photoUrl;
-    } else if (!existing.photoURL && user.photoURL) {
-      updates.photoURL = user.photoURL;
-    }
-    await updateDoc(userRef, updates);
-    return { ...existing, ...updates };
+  } catch (err: any) {
+    console.warn('Profile sync handled gracefully during offline/initializing:', err?.message || err);
+    return fallbackProfile;
   }
 };
 

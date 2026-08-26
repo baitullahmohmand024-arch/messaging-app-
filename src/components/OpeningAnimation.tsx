@@ -196,23 +196,23 @@ export const OpeningAnimation: React.FC<OpeningAnimationProps> = ({
     const timers: NodeJS.Timeout[] = [];
 
     if (hasSeenIntroBefore) {
-      // Returning user short sequence: brand shimmer -> enter (approx 1.4s)
+      // Returning user short sequence: brand shimmer -> enter (approx 400ms)
       timers.push(
         setTimeout(() => {
           handleFinish();
-        }, 1400)
+        }, 400)
       );
       return () => timers.forEach(clearTimeout);
     }
 
-    // Phase 1 -> Phase 2: Silence to Floating Balloon (after 280ms)
+    // Phase 1 -> Phase 2: Silence to Floating Balloon (after 100ms)
     timers.push(
       setTimeout(() => {
         setPhase('floating');
-      }, 280)
+      }, 100)
     );
 
-    // Phase 2 -> Phase 4: Floating reaches center -> Burst (at 1450ms)
+    // Phase 2 -> Phase 4: Floating reaches center -> Burst (at 550ms)
     timers.push(
       setTimeout(() => {
         setPhase('popping');
@@ -221,28 +221,28 @@ export const OpeningAnimation: React.FC<OpeningAnimationProps> = ({
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2 - 15;
         triggerBurstParticles(cx, cy);
-      }, 1450)
+      }, 550)
     );
 
-    // Phase 4 -> Phase 5: Balloon burst -> "Welcome" (at 1580ms)
+    // Phase 4 -> Phase 5: Balloon burst -> "Welcome" (at 650ms)
     timers.push(
       setTimeout(() => {
         setPhase('welcome');
-      }, 1580)
+      }, 650)
     );
 
-    // Phase 5 -> Phase 6: "Welcome" -> Brand Reveal "MY LOVE IS HERE" (at 2350ms)
+    // Phase 5 -> Phase 6: "Welcome" -> Brand Reveal "MY LOVE IS HERE" (at 950ms)
     timers.push(
       setTimeout(() => {
         setPhase('brand');
-      }, 2350)
+      }, 950)
     );
 
-    // Phase 6 -> Finish: Brand settled -> Smooth transition into application (at 3700ms)
+    // Phase 6 -> Finish: Brand settled -> Smooth transition into application (at 1500ms)
     timers.push(
       setTimeout(() => {
         handleFinish();
-      }, 3700)
+      }, 1500)
     );
 
     return () => {
