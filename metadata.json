@@ -1,0 +1,11 @@
+{
+  "name": "MY LOVE IS HERE",
+  "description": "An intimate, luxury private space for two with real-time messaging, photos, video, and voice notes.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

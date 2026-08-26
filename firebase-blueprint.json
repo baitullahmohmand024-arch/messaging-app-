@@ -1,0 +1,111 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with display name, avatar, and active connection ID",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique Firebase user ID" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "email": { "type": "string", "description": "User email address" },
+        "photoURL": { "type": "string", "description": "User avatar URL or data URI" },
+        "createdAt": { "type": "number", "description": "Creation timestamp in ms" },
+        "lastSeen": { "type": "number", "description": "Last active timestamp in ms" },
+        "isOnline": { "type": "boolean", "description": "Whether user is currently active" },
+        "activeConnectionId": { "type": "string", "description": "ID of active paired connection" }
+      },
+      "required": ["uid", "displayName", "createdAt"]
+    },
+    "Invitation": {
+      "title": "Invitation",
+      "description": "Private pairing invite token",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Invitation ID" },
+        "token": { "type": "string", "description": "Cryptographic secure token" },
+        "createdBy": { "type": "string", "description": "UID of creator" },
+        "creatorName": { "type": "string", "description": "Display name of creator" },
+        "creatorPhoto": { "type": "string", "description": "Avatar of creator" },
+        "createdAt": { "type": "number", "description": "Created timestamp" },
+        "expiresAt": { "type": "number", "description": "Expiration timestamp" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "expired"] },
+        "acceptedBy": { "type": "string", "description": "UID of acceptor" },
+        "acceptedAt": { "type": "number", "description": "Accepted timestamp" }
+      },
+      "required": ["id", "token", "createdBy", "createdAt", "expiresAt", "status"]
+    },
+    "Connection": {
+      "title": "Connection",
+      "description": "Private two-person connected room",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Connection ID" },
+        "members": { "type": "array", "description": "Array of two participant UIDs" },
+        "memberDetails": { "type": "object", "description": "Map of UID to Member Info" },
+        "createdAt": { "type": "number", "description": "Room creation timestamp" },
+        "status": { "type": "string", "enum": ["active", "disconnected"] },
+        "lastMessage": { "type": "object", "description": "Latest message snippet" },
+        "disconnectedBy": { "type": "string", "description": "UID of user who disconnected" },
+        "disconnectedAt": { "type": "number", "description": "Disconnect timestamp" }
+      },
+      "required": ["id", "members", "createdAt", "status"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Individual message inside a private connection",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Message ID" },
+        "conversationId": { "type": "string", "description": "Connection ID" },
+        "senderId": { "type": "string", "description": "UID of sender" },
+        "senderName": { "type": "string", "description": "Display name of sender" },
+        "senderPhoto": { "type": "string", "description": "Avatar of sender" },
+        "type": { "type": "string", "enum": ["text", "image", "video", "audio"] },
+        "text": { "type": "string", "description": "Text body of the message" },
+        "mediaUrl": { "type": "string", "description": "Media URL or data URI" },
+        "thumbnailUrl": { "type": "string", "description": "Thumbnail preview" },
+        "duration": { "type": "number", "description": "Audio/video duration in seconds" },
+        "fileName": { "type": "string", "description": "Attachment file name" },
+        "fileSize": { "type": "number", "description": "File size in bytes" },
+        "createdAt": { "type": "number", "description": "Send timestamp" },
+        "deliveredAt": { "type": "number", "description": "Delivery timestamp" },
+        "readAt": { "type": "number", "description": "Read timestamp" },
+        "replyTo": { "type": "object", "description": "Quoted message preview" },
+        "reactions": { "type": "object", "description": "Map of emoji to UID list" },
+        "isDeleted": { "type": "boolean", "description": "Whether message is soft deleted" }
+      },
+      "required": ["id", "conversationId", "senderId", "senderName", "type", "createdAt"]
+    },
+    "Presence": {
+      "title": "Presence",
+      "description": "Real-time typing and active status",
+      "type": "object",
+      "properties": {
+        "isTyping": { "type": "boolean", "description": "Whether user is currently typing" },
+        "lastActive": { "type": "number", "description": "Heartbeat timestamp" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "UserProfile" },
+      "description": "Public and private user profile document"
+    },
+    "/invitations/{invitationId}": {
+      "schema": { "$ref": "Invitation" },
+      "description": "Invitation links for connecting partners"
+    },
+    "/connections/{connectionId}": {
+      "schema": { "$ref": "Connection" },
+      "description": "Private connection between two users"
+    },
+    "/connections/{connectionId}/messages/{messageId}": {
+      "schema": { "$ref": "Message" },
+      "description": "Encrypted or private message history"
+    },
+    "/connections/{connectionId}/presence/{userId}": {
+      "schema": { "$ref": "Presence" },
+      "description": "Real-time typing presence for each user"
+    }
+  }
+}
